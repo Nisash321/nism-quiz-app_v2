@@ -450,14 +450,15 @@ function QuizPage({ navigate }) {
       <div className="w-full md:w-2/3 p-4 md:p-8 flex flex-col">
         <div className="bg-white p-6 rounded-lg shadow-md flex-grow">
           <QuestionCard question={currentQuestion} questionNumber={currentQuestionIndex + 1} />
-        </div>
-        <div className="mt-6 flex justify-between items-center">
-          <button onClick={handlePrev} disabled={currentQuestionIndex === 0} className="px-6 py-2 bg-gray-300 text-gray-700 font-semibold rounded-lg disabled:opacity-50 hover:bg-gray-400">Previous</button>
-          <div>
-            <button onClick={togglePause} className="px-6 py-2 bg-yellow-500 text-white font-semibold rounded-lg hover:bg-yellow-600 mr-2">{isPaused ? 'Resume' : 'Pause'}</button>
-            <button onClick={handleSubmit} className="px-6 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700">Submit Test</button>
+          {/* --- BUTTONS MOVED HERE --- */}
+          <div className="mt-6 flex justify-between items-center">
+            <button onClick={handlePrev} disabled={currentQuestionIndex === 0} className="px-6 py-2 bg-gray-300 text-gray-700 font-semibold rounded-lg disabled:opacity-50 hover:bg-gray-400">Previous</button>
+            <div>
+              <button onClick={togglePause} className="px-6 py-2 bg-yellow-500 text-white font-semibold rounded-lg hover:bg-yellow-600 mr-2">{isPaused ? 'Resume' : 'Pause'}</button>
+              <button onClick={handleSubmit} className="px-6 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700">Submit Test</button>
+            </div>
+            <button onClick={handleNext} disabled={currentQuestionIndex === questions.length - 1} className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg disabled:opacity-50 hover:bg-blue-700">Next</button>
           </div>
-          <button onClick={handleNext} disabled={currentQuestionIndex === questions.length - 1} className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg disabled:opacity-50 hover:bg-blue-700">Next</button>
         </div>
       </div>
       <div className="w-full md:w-1/3 p-4 md:p-8 bg-white border-l border-gray-200"><div className="sticky top-8"><QuizTimer /><QuizSummary /></div></div>
