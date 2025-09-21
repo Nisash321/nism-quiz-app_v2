@@ -8,7 +8,9 @@ export const useQuizStore = create((set, get) => ({
   questions: [],
   currentQuestionIndex: 0,
   isTestRunning: false,
+  isPaused: false,
   startTime: 0,
+  pauseTime: 0,
   finalResults: null,
   testDurationMinutes: 0,
 
@@ -29,15 +31,33 @@ export const useQuizStore = create((set, get) => ({
 
     const shuffled = filteredQuestions.sort(() => 0.5 - Math.random());
     const selectedQuestions = shuffled.slice(0, config.count);
-    const duration = Math.ceil(config.count * 1.2); 
-    
+    const duration = Math.ceil(config.count * 1.2);
+
     set({
       questions: selectedQuestions.map(q => ({ ...q, userAnswer: null, showAnswer: false })),
       currentQuestionIndex: 0,
       isTestRunning: true,
+      isPaused: false,
       startTime: Date.now(),
       finalResults: null,
       testDurationMinutes: duration,
+    });
+  },
+
+  togglePause: () => {
+    set((state) => {
+      if (state.isPaused) {
+        const timePaused = Date.now() - state.pauseTime;
+        return {
+          isPaused: false,
+          startTime: state.startTime + timePaused,
+        };
+      } else {
+        return {
+          isPaused: true,
+          pauseTime: Date.now(),
+        };
+      }
     });
   },
 
@@ -51,12 +71,12 @@ export const useQuizStore = create((set, get) => ({
 
   checkAnswer: (questionId) => {
     set((state) => ({
-        questions: state.questions.map((q) => 
+        questions: state.questions.map((q) =>
             q.id === questionId ? { ...q, showAnswer: true } : q
         ),
     }));
   },
-  
+
   navigateToQuestion: (index) => {
     if(index >= 0 && index < get().questions.length) {
       set({ currentQuestionIndex: index });
@@ -67,17 +87,18 @@ export const useQuizStore = create((set, get) => ({
     const analysis = calculateAnalysis(get().questions);
     set({ finalResults: analysis, isTestRunning: false });
   },
-  
+
   reset: () => {
       set((state) => ({
-        questions: [], 
-        currentQuestionIndex: 0, 
-        isTestRunning: false, 
-        startTime: 0, 
-        finalResults: null, 
+        questions: [],
+        currentQuestionIndex: 0,
+        isTestRunning: false,
+        isPaused: false,
+        startTime: 0,
+        finalResults: null,
         testDurationMinutes: 0,
         // Keep allQuestions loaded
-        allQuestions: state.allQuestions 
+        allQuestions: state.allQuestions
       }));
   }
 }));
@@ -94,7 +115,7 @@ const calculateAnalysis = (questions) => {
     if (!topicStats[category]) {
       topicStats[category] = { correct: 0, total: 0 };
     }
-    
+
     if (q.userAnswer) {
         topicStats[category].total++;
         if (q.userAnswer === q.answer) {
@@ -164,25 +185,31 @@ function QuestionCard({ question, questionNumber }) {
         })}
       </div>
       {userAnswer && !showAnswer && (
-          <button 
+          <button
             onClick={() => checkAnswer(question.id)}
             className="mt-6 px-6 py-2 bg-yellow-500 text-white font-semibold rounded-lg shadow-md hover:bg-yellow-600"
           >
               Check Answer
           </button>
       )}
+      {showAnswer && question.explanation && (
+        <div className="mt-4 p-4 bg-gray-100 rounded-lg">
+          <h3 className="font-semibold text-gray-800">Explanation</h3>
+          <p className="text-gray-700">{question.explanation}</p>
+        </div>
+      )}
     </div>
   );
 }
 
 function QuizTimer() {
-  const { startTime, submitTest, testDurationMinutes } = useQuizStore();
+  const { startTime, submitTest, testDurationMinutes, isPaused } = useQuizStore();
   const [timeLeft, setTimeLeft] = useState(testDurationMinutes * 60);
 
   useEffect(() => { setTimeLeft(testDurationMinutes * 60) }, [testDurationMinutes]);
 
   useEffect(() => {
-    if (!startTime) return;
+    if (!startTime || isPaused) return;
     const interval = setInterval(() => {
       const elapsed = Math.floor((Date.now() - startTime) / 1000);
       const remaining = testDurationMinutes * 60 - elapsed;
@@ -195,8 +222,8 @@ function QuizTimer() {
       }
     }, 1000);
     return () => clearInterval(interval);
-  }, [startTime, testDurationMinutes, submitTest]);
-  
+  }, [startTime, testDurationMinutes, submitTest, isPaused]);
+
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
 
@@ -286,14 +313,14 @@ function HomePage({ navigate }) {
 
       const subjects = [...new Set(allQuestions.map(q => q.category))];
       const papers = [...new Set(allQuestions.map(q => q.subCategory))];
-      
+
       let currentMax = allQuestions.length;
       if (quizType === 'subject') {
           currentMax = allQuestions.filter(q => q.category === selectedSubject).length;
       } else if (quizType === 'paper') {
           currentMax = allQuestions.filter(q => q.subCategory === selectedPaper).length;
       }
-      
+
       if(selectedSubject === '' && subjects.length > 0) setSelectedSubject(subjects[0]);
       if(selectedPaper === '' && papers.length > 0) setSelectedPaper(papers[0]);
 
@@ -322,15 +349,15 @@ function HomePage({ navigate }) {
       <div className="w-full max-w-2xl text-center">
         <h1 className="text-4xl font-bold text-gray-800 mb-4">NISM Derivatives Practice Exam</h1>
         <p className="text-lg text-gray-600 mb-12">Load your question file to begin.</p>
-        
+
         <div className="p-8 bg-white rounded-xl shadow-lg border border-gray-200 text-left">
           <div className="mb-6">
             <label className="block text-lg font-medium text-gray-700 mb-2 text-center">
               Load Question File
             </label>
-            <input 
-              type="file" 
-              accept=".json" 
+            <input
+              type="file"
+              accept=".json"
               onChange={handleFileChange}
               className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
             />
@@ -340,7 +367,7 @@ function HomePage({ navigate }) {
           {allQuestions.length > 0 && (
             <>
               <h2 className="text-2xl font-semibold text-blue-600 mb-6 text-center border-t pt-6 mt-6">Customize Your Quiz</h2>
-              
+
               <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Quiz Type</label>
                   <select onChange={(e) => setQuizType(e.target.value)} value={quizType} className="w-full p-2 border border-gray-300 rounded-md">
@@ -400,9 +427,9 @@ function HomePage({ navigate }) {
 }
 
 function QuizPage({ navigate }) {
-  const { questions, currentQuestionIndex, navigateToQuestion, submitTest, isTestRunning, finalResults } = useQuizStore();
+  const { questions, currentQuestionIndex, navigateToQuestion, submitTest, isTestRunning, finalResults, togglePause, isPaused } = useQuizStore();
   const currentQuestion = questions[currentQuestionIndex];
-  
+
   useEffect(() => {
     if (!isTestRunning && !finalResults) { navigate('home') }
     if (finalResults) { navigate('results') }
@@ -412,7 +439,11 @@ function QuizPage({ navigate }) {
 
   const handleNext = () => navigateToQuestion(currentQuestionIndex + 1);
   const handlePrev = () => navigateToQuestion(currentQuestionIndex - 1);
-  const handleSubmit = () => submitTest();
+  const handleSubmit = () => {
+    if(window.confirm("Are you sure you want to submit the test?")) {
+      submitTest();
+    }
+  };
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-gray-100">
@@ -422,7 +453,10 @@ function QuizPage({ navigate }) {
         </div>
         <div className="mt-6 flex justify-between items-center">
           <button onClick={handlePrev} disabled={currentQuestionIndex === 0} className="px-6 py-2 bg-gray-300 text-gray-700 font-semibold rounded-lg disabled:opacity-50 hover:bg-gray-400">Previous</button>
-          <button onClick={handleSubmit} className="px-6 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700">Submit Test</button>
+          <div>
+            <button onClick={togglePause} className="px-6 py-2 bg-yellow-500 text-white font-semibold rounded-lg hover:bg-yellow-600 mr-2">{isPaused ? 'Resume' : 'Pause'}</button>
+            <button onClick={handleSubmit} className="px-6 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700">Submit Test</button>
+          </div>
           <button onClick={handleNext} disabled={currentQuestionIndex === questions.length - 1} className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg disabled:opacity-50 hover:bg-blue-700">Next</button>
         </div>
       </div>
@@ -444,8 +478,8 @@ function ResultsPage({ navigate }) {
   const callGeminiAPI = async (prompt) => {
       const chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
       const payload = { contents: chatHistory };
-      const apiKey = process.env.REACT_APP_GEMINI_API_KEY; 
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+      const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
       try {
           const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
           if (!response.ok) { throw new Error(`API call failed with status: ${response.status}`) }
@@ -477,7 +511,7 @@ function ResultsPage({ navigate }) {
   };
 
   if (!finalResults) { return <div className="flex h-screen items-center justify-center">Loading results...</div> }
-  
+
   const handleGoHome = () => { reset(); navigate('home') }
   const { score, totalQuestions, passed, topicAnalysis, answeredQuestions, accuracy, correctCount } = finalResults;
 
